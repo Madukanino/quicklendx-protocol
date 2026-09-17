@@ -9,6 +9,7 @@
 //! - Type safety: strong typing for status and categories
 //! - Addresses are used for identity to leverage Soroban's built-in access control
 
+pub use crate::payments::{Escrow, EscrowStatus};
 use crate::DisputeResolution as OtherDisputeResolution;
 use soroban_sdk::{contracttype, Address, BytesN, String, Vec};
 

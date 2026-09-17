@@ -428,7 +428,7 @@ impl QuickLendXContract {
     }
 
     pub fn get_total_invoice_count(env: Env) -> u32 {
-        InvoiceStorage::get_total_count(&env)
+        u32::try_from(InvoiceStorage::get_total_count(&env)).unwrap_or(u32::MAX)
     }
 
     pub fn get_invoice_count_by_status(env: Env, status: InvoiceStatus) -> u32 {
