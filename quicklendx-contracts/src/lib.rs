@@ -5790,25 +5790,6 @@ mod test_fuzz_accounting;
 
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_fuzz_default_flow;
-#[cfg(feature = "diagnostics")]
-#[contractimpl]
-impl QuickLendXContract {
-    /// Return a rich internal diagnostic snapshot.
-    ///
-    /// Intended for operator tooling, support dashboards, and integration tests
-    /// that need per-status invoice counts, bid counters, and subsystem flags in
-    /// a single call without having to fan out across multiple read entry-points.
-    ///
-    /// # Returns
-    /// A [`diagnostics::ProtocolDiagnostics`] snapshot (see `diagnostics.rs`).
-    ///
-    /// # Security
-    /// - No authentication required (read-only, no PII).
-    /// - State is never mutated.
-    pub fn get_protocol_diagnostics(env: Env) -> diagnostics::ProtocolDiagnostics {
-        diagnostics::get_protocol_diagnostics(&env)
-    }
-}
 
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_authorization;
