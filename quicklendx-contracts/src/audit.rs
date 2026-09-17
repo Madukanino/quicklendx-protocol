@@ -56,6 +56,8 @@ pub enum AuditOperation {
     BidPlaced,
     BidAccepted,
     BidWithdrawn,
+    BidCancelled,
+    BidExpired,
     EscrowCreated,
     EscrowReleased,
     EscrowRefunded,
@@ -128,6 +130,8 @@ pub enum OpType {
     BidPlaced,
     BidAccepted,
     BidWithdrawn,
+    BidCancelled,
+    BidExpired,
     EscrowCreated,
     EscrowReleased,
     EscrowRefunded,
@@ -173,6 +177,8 @@ impl OpType {
             OpType::BidPlaced => symbol_short!("bid_plc"),
             OpType::BidAccepted => symbol_short!("bid_acc"),
             OpType::BidWithdrawn => symbol_short!("bid_wdr"),
+            OpType::BidCancelled => symbol_short!("bid_cnl"),
+            OpType::BidExpired => symbol_short!("bid_exp"),
             OpType::EscrowCreated => symbol_short!("esc_cr"),
             OpType::EscrowReleased => symbol_short!("esc_rel"),
             OpType::EscrowRefunded => symbol_short!("esc_ref"),
@@ -246,6 +252,8 @@ impl OpType {
             OpType::KycRevoked => 36,
             OpType::InvestorFrozen => 37,
             OpType::InvestorUnfrozen => 38,
+            OpType::BidCancelled => 39,
+            OpType::BidExpired => 40,
         }
     }
 }
@@ -264,6 +272,8 @@ impl From<AuditOperation> for OpType {
             AuditOperation::BidPlaced => OpType::BidPlaced,
             AuditOperation::BidAccepted => OpType::BidAccepted,
             AuditOperation::BidWithdrawn => OpType::BidWithdrawn,
+            AuditOperation::BidCancelled => OpType::BidCancelled,
+            AuditOperation::BidExpired => OpType::BidExpired,
             AuditOperation::EscrowCreated => OpType::EscrowCreated,
             AuditOperation::EscrowReleased => OpType::EscrowReleased,
             AuditOperation::EscrowRefunded => OpType::EscrowRefunded,
@@ -598,6 +608,8 @@ fn operation_tag(operation: &AuditOperation) -> u8 {
         AuditOperation::KycRevoked => 36,
         AuditOperation::InvestorFrozen => 37,
         AuditOperation::InvestorUnfrozen => 38,
+        AuditOperation::BidCancelled => 39,
+        AuditOperation::BidExpired => 40,
     }
 }
 

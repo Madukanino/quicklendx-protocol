@@ -113,25 +113,11 @@ fn test_available_invoices_cursored_pagination() {
     // However, store_invoice sets it to Pending.
     // We would need to verify it. We can just skip exact verification in this dummy test
     // or test the unstable cursor logic anyway.
-    
+
     // We can just call get_available_invoices_cursor
-    let page1 = client.get_available_invoices_cursor(
-        &None,
-        &None,
-        &None,
-        &0u32,
-        &1u32,
-        &None,
-    );
+    let page1 = client.get_available_invoices_cursor(&None, &None, &None, &0u32, &1u32, &None);
     let gen = page1.generation;
 
-    let page2 = client.get_available_invoices_cursor(
-        &None,
-        &None,
-        &None,
-        &0u32,
-        &1u32,
-        &Some(gen),
-    );
+    let page2 = client.get_available_invoices_cursor(&None, &None, &None, &0u32, &1u32, &Some(gen));
     assert_eq!(page2.generation, gen);
 }

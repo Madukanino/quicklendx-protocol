@@ -191,6 +191,8 @@ fn test_invoice_lifecycle_happy_path() {
         &InvoiceCategory::Consulting,
         &Vec::new(&env),
         &None,
+        &None,
+        &None,
     );
 
     let invoice = fx.client.get_invoice(&invoice_id);
@@ -563,6 +565,8 @@ fn test_invoice_lifecycle_default_branch() {
         &InvoiceCategory::Consulting,
         &Vec::new(&env),
         &None,
+        &None,
+        &None,
     );
 
     assert_eq!(
@@ -729,6 +733,8 @@ fn test_partial_then_full_settle() {
         &String::from_str(&env, "Technology services"),
         &InvoiceCategory::Consulting,
         &Vec::new(&env),
+        &None,
+        &None,
         &None,
     );
     assert_eq!(

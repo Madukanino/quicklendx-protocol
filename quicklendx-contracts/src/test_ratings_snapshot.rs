@@ -50,11 +50,22 @@ fn test_ratings_snapshot_lifecycle() {
     );
 
     client.verify_invoice(&invoice_id);
-    let bid_id = client.place_bid(&investor, &invoice_id, &1000, &1050, &BytesN::from_array(&env, &[0u8; 32]));
+    let bid_id = client.place_bid(
+        &investor,
+        &invoice_id,
+        &1000,
+        &1050,
+        &BytesN::from_array(&env, &[0u8; 32]),
+    );
     client.accept_bid_and_fund(&invoice_id, &bid_id);
 
     // Add multiple ratings
-    client.add_invoice_rating(&invoice_id, &5, &String::from_str(&env, "Great!"), &investor);
+    client.add_invoice_rating(
+        &invoice_id,
+        &5,
+        &String::from_str(&env, "Great!"),
+        &investor,
+    );
 
     let investor2 = Address::generate(&env);
     client.submit_investor_kyc(&investor2, &String::from_str(&env, "KYC"));

@@ -8,19 +8,15 @@ use crate::QuickLendXContractClient;
 use soroban_sdk::testutils::Events as EventsTrait;
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
-    token, Address, BytesN, Env, String, Symbol, TryFromVal, Vec, xdr,
+    token, xdr, Address, BytesN, Env, String, Symbol, TryFromVal, Vec,
 };
 
 fn event_emitted(env: &Env, topic: &str) -> bool {
     let topic_sym = Symbol::new(env, topic);
     let topic_xdr = xdr::ScVal::try_from_val(env, &topic_sym).expect("topic to xdr");
-    env.events()
-        .all()
-        .events()
-        .iter()
-        .any(|e| match &e.body {
-            xdr::ContractEventBody::V0(b) => b.topics.first() == Some(&topic_xdr),
-        })
+    env.events().all().events().iter().any(|e| match &e.body {
+        xdr::ContractEventBody::V0(b) => b.topics.first() == Some(&topic_xdr),
+    })
 }
 
 fn setup_test_env() -> (
@@ -148,31 +144,40 @@ fn test_funding_events_and_audit_parity_success_flow() {
     assert!(event_emitted(&env, "invoice_fu"));
 
     // Verify audit logs for funding transitions
-    let escrow_audit = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(invoice_id.clone()),
-        operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::EscrowCreated),
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &10);
+    let escrow_audit = client.query_audit_logs(
+        &AuditQueryFilter {
+            invoice_id: Some(invoice_id.clone()),
+            operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::EscrowCreated),
+            actor: None,
+            start_timestamp: None,
+            end_timestamp: None,
+        },
+        &10,
+    );
     assert_eq!(escrow_audit.len(), 1);
 
-    let accepted_audit = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(invoice_id.clone()),
-        operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::BidAccepted),
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &10);
+    let accepted_audit = client.query_audit_logs(
+        &AuditQueryFilter {
+            invoice_id: Some(invoice_id.clone()),
+            operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::BidAccepted),
+            actor: None,
+            start_timestamp: None,
+            end_timestamp: None,
+        },
+        &10,
+    );
     assert_eq!(accepted_audit.len(), 1);
 
-    let funded_audit = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(invoice_id.clone()),
-        operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::InvoiceFunded),
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &10);
+    let funded_audit = client.query_audit_logs(
+        &AuditQueryFilter {
+            invoice_id: Some(invoice_id.clone()),
+            operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::InvoiceFunded),
+            actor: None,
+            start_timestamp: None,
+            end_timestamp: None,
+        },
+        &10,
+    );
     assert_eq!(funded_audit.len(), 1);
 
     // Verify chain integrity
@@ -241,25 +246,35 @@ fn test_rejected_and_duplicate_operations_emit_no_partial_state_or_audit() {
     );
     client.accept_bid_and_fund(&inv, &bid_id);
 
-    let audit_count_before = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(inv.clone()),
-        operation: crate::audit::AuditOperationFilter::Any,
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &100).len();
+    let audit_count_before = client
+        .query_audit_logs(
+            &AuditQueryFilter {
+                invoice_id: Some(inv.clone()),
+                operation: crate::audit::AuditOperationFilter::Any,
+                actor: None,
+                start_timestamp: None,
+                end_timestamp: None,
+            },
+            &100,
+        )
+        .len();
 
     // Duplicate funding attempt must fail
     let duplicate_res = client.try_accept_bid_and_fund(&inv, &bid_id);
     assert!(duplicate_res.is_err());
 
-    let audit_count_after = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(inv.clone()),
-        operation: crate::audit::AuditOperationFilter::Any,
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &100).len();
+    let audit_count_after = client
+        .query_audit_logs(
+            &AuditQueryFilter {
+                invoice_id: Some(inv.clone()),
+                operation: crate::audit::AuditOperationFilter::Any,
+                actor: None,
+                start_timestamp: None,
+                end_timestamp: None,
+            },
+            &100,
+        )
+        .len();
 
     // Must have logged ZERO new audit records for the failed attempt
     assert_eq!(audit_count_before, audit_count_after);
@@ -285,13 +300,16 @@ fn test_escrow_refund_events_and_audit_parity() {
     client.refund_escrow_funds(&inv, &investor);
 
     // Verify EscrowRefunded event and audit
-    let refund_audit = client.query_audit_logs(&AuditQueryFilter {
-        invoice_id: Some(inv.clone()),
-        operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::EscrowRefunded),
-        actor: None,
-        start_timestamp: None,
-        end_timestamp: None,
-    }, &10);
+    let refund_audit = client.query_audit_logs(
+        &AuditQueryFilter {
+            invoice_id: Some(inv.clone()),
+            operation: crate::audit::AuditOperationFilter::Specific(AuditOperation::EscrowRefunded),
+            actor: None,
+            start_timestamp: None,
+            end_timestamp: None,
+        },
+        &10,
+    );
     assert_eq!(refund_audit.len(), 1);
     assert!(client.verify_audit_chain(&inv));
 }

@@ -126,7 +126,8 @@ fn refund_succeeds_after_due_date_passes() {
 
     // Refund must succeed: escrow is Held and time has passed.
     env.as_contract(&contract_id, || {
-        refund_escrow(&env, &inv_id, &investor).expect("refund_escrow must succeed after due_date passes");
+        refund_escrow(&env, &inv_id, &investor)
+            .expect("refund_escrow must succeed after due_date passes");
 
         let escrow = EscrowStorage::get_escrow_by_invoice(&env, &inv_id)
             .expect("escrow record must persist");
@@ -168,7 +169,8 @@ fn refund_blocked_when_no_escrow_exists() {
     let inv_id = invoice_id(&env, 0x02);
 
     env.as_contract(&contract_id, || {
-        let err = refund_escrow(&env, &inv_id, &investor).expect_err("refund must fail when no escrow exists");
+        let err = refund_escrow(&env, &inv_id, &investor)
+            .expect_err("refund must fail when no escrow exists");
         assert_eq!(
             err,
             QuickLendXError::StorageKeyNotFound,
@@ -321,7 +323,8 @@ fn refund_works_one_second_after_due_date() {
     env.ledger().set_timestamp(due_date + 1);
 
     env.as_contract(&contract_id, || {
-        refund_escrow(&env, &inv_id, &investor).expect("refund_escrow must succeed one second after due_date");
+        refund_escrow(&env, &inv_id, &investor)
+            .expect("refund_escrow must succeed one second after due_date");
 
         let escrow = EscrowStorage::get_escrow_by_invoice(&env, &inv_id)
             .expect("escrow record must persist");
@@ -372,8 +375,8 @@ fn double_refund_blocked_after_expiry() {
         refund_escrow(&env, &inv_id, &investor).expect("first refund must succeed after due_date");
 
         // Second refund must be rejected — terminal state is immutable.
-        let err =
-            refund_escrow(&env, &inv_id, &investor).expect_err("second refund after expiry must be rejected");
+        let err = refund_escrow(&env, &inv_id, &investor)
+            .expect_err("second refund after expiry must be rejected");
         assert_eq!(
             err,
             QuickLendXError::InvalidStatus,

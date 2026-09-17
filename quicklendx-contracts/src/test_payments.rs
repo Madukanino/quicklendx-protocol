@@ -536,7 +536,9 @@ fn test_release_escrow_insufficient_contract_balance_state_unchanged() {
         EscrowStorage::store_escrow(&env, &escrow);
     });
 
-    let result = env.as_contract(&contract_id, || release_escrow(&env, &invoice_id, &business));
+    let result = env.as_contract(&contract_id, || {
+        release_escrow(&env, &invoice_id, &business)
+    });
 
     assert_eq!(result, Err(QuickLendXError::InsufficientFunds));
 
@@ -568,7 +570,9 @@ fn test_release_escrow_success() {
     let contract_before = token_client.balance(&contract_id);
     let business_before = token_client.balance(&business);
 
-    let result = env.as_contract(&contract_id, || release_escrow(&env, &invoice_id, &business));
+    let result = env.as_contract(&contract_id, || {
+        release_escrow(&env, &invoice_id, &business)
+    });
 
     assert_eq!(result, Ok(()));
 
