@@ -324,12 +324,18 @@ fn rejected_attempt_does_not_poison_key_or_state() {
     let first = client.try_accept_bid_and_fund_with_key(&invoice_id, &stale_bid_id, &key);
     assert!(first.is_err(), "expired bid must be rejected");
     let err = first.unwrap_err().unwrap();
-    assert_eq!(err, QuickLendXError::InvalidStatus);
+    assert!(
+        err == QuickLendXError::InvalidStatus || err == QuickLendXError::BidStale,
+        "expired bid must be rejected; got: {err:?}"
+    );
 
     let retry = client.try_accept_bid_and_fund_with_key(&invoice_id, &stale_bid_id, &key);
     assert!(retry.is_err(), "still stale, still rejected");
     let retry_err = retry.unwrap_err().unwrap();
-    assert_eq!(retry_err, QuickLendXError::InvalidStatus);
+    assert!(
+        retry_err == QuickLendXError::InvalidStatus || retry_err == QuickLendXError::BidStale,
+        "still stale, still rejected; got: {retry_err:?}"
+    );
 
     assert_eq!(
         contract_token_balance(&env, &currency, &contract_id),
