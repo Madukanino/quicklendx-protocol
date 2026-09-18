@@ -2636,10 +2636,11 @@ impl QuickLendXContract {
         BidStorage::cleanup_expired_bids(&env, &invoice_id);
         let mut invoice = InvoiceStorage::get_invoice(&env, &invoice_id)
             .ok_or(QuickLendXError::InvoiceNotFound)?;
-        let bid = BidStorage::get_bid(&env, &bid_id).unwrap();
+        let bid = BidStorage::get_bid(&env, &bid_id).ok_or(QuickLendXError::StorageKeyNotFound)?;
         let invoice_id = bid.invoice_id.clone();
         BidStorage::cleanup_expired_bids(&env, &invoice_id);
-        let mut bid = BidStorage::get_bid(&env, &bid_id).unwrap();
+        let mut bid =
+            BidStorage::get_bid(&env, &bid_id).ok_or(QuickLendXError::StorageKeyNotFound)?;
         invoice.business.require_auth();
 
         // Enforce business is active (not deleted/frozen).
@@ -2648,14 +2649,16 @@ impl QuickLendXContract {
         // Enforce KYC: a pending business must not accept bids.
         require_business_not_pending(&env, &invoice.business)?;
 
+        let now = env.ledger().timestamp();
+        if bid.status != BidStatus::Placed || bid.is_expired(now) {
+            return Err(QuickLendXError::BidStale);
+        }
+
         // Re-verify investor KYC status and aggregate investment capacity before accepting bid.
         validate_investor_investment(&env, &bid.investor, 0)?;
 
         if invoice.status != InvoiceStatus::Verified {
             return Err(QuickLendXError::InvalidStatus);
-        }
-        if bid.status != BidStatus::Placed || bid.is_expired(env.ledger().timestamp()) {
-            return Err(QuickLendXError::BidStale);
         }
 
         let escrow_id = create_escrow(

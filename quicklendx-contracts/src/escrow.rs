@@ -136,11 +136,9 @@ pub(crate) fn load_accept_bid_context(
         return Err(QuickLendXError::Unauthorized);
     }
 
-    // Enforce the legal transition matrix at the accept entry point: only
-    // `Placed -> Accepted` is legal. Cancelled, Withdrawn, Expired, and
-    // already-Accepted bids are rejected without touching any state.
-    if BidStatus::validate_transition(&bid.status, &BidStatus::Accepted).is_err() {
-        return Err(QuickLendXError::InvalidStatus);
+    let now = env.ledger().timestamp();
+    if bid.status != BidStatus::Placed || bid.is_expired(now) {
+        return Err(QuickLendXError::BidStale);
     }
 
     // KYC and freeze status are checked again at acceptance time. A bid can
@@ -148,10 +146,6 @@ pub(crate) fn load_accept_bid_context(
     // validation alone is not sufficient authorization for moving funds.
     require_investor_not_frozen(env, &bid.investor)?;
     require_investor_not_pending(env, &bid.investor)?;
-
-    if bid.is_expired(env.ledger().timestamp()) {
-        return Err(QuickLendXError::BidStale);
-    }
 
     if bid.bid_amount <= 0 {
         return Err(QuickLendXError::InvalidAmount);
