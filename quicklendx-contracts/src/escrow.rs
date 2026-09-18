@@ -137,8 +137,12 @@ pub(crate) fn load_accept_bid_context(
     }
 
     let now = env.ledger().timestamp();
-    if bid.status != BidStatus::Placed || bid.is_expired(now) {
+    if bid.status == BidStatus::Expired || bid.is_expired(now) {
         return Err(QuickLendXError::BidStale);
+    }
+
+    if BidStatus::validate_transition(&bid.status, &BidStatus::Accepted).is_err() {
+        return Err(QuickLendXError::InvalidStatus);
     }
 
     // KYC and freeze status are checked again at acceptance time. A bid can

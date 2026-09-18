@@ -2650,8 +2650,12 @@ impl QuickLendXContract {
         require_business_not_pending(&env, &invoice.business)?;
 
         let now = env.ledger().timestamp();
-        if bid.status != BidStatus::Placed || bid.is_expired(now) {
+        if bid.status == BidStatus::Expired || bid.is_expired(now) {
             return Err(QuickLendXError::BidStale);
+        }
+
+        if BidStatus::validate_transition(&bid.status, &BidStatus::Accepted).is_err() {
+            return Err(QuickLendXError::InvalidStatus);
         }
 
         // Re-verify investor KYC status and aggregate investment capacity before accepting bid.
