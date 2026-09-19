@@ -8,7 +8,7 @@ use crate::protocol_limits::{
 use crate::types::{
     Invoice, InvoiceStatus, InvoiceCategory, InvoiceMetadata, Bid, BidStatus,
     DisputeStatus, PaymentRecord, InvoiceRating, Escrow, EscrowStatus,
-    BusinessFreezeReason,
+    BusinessFreezeReason, FreezeInfo,
 };
 use crate::storage::InvoiceStorage;
 use crate::init::{ProtocolInitializer, InitializationParams};
@@ -370,7 +370,20 @@ impl QuickLendXContract {
         reason: BusinessFreezeReason,
     ) -> Result<(), QuickLendXError> {
         crate::admin::AdminStorage::require_admin(&env, &admin)?;
+
+        let frozen_at = env.ledger().timestamp();
+
         InvoiceStorage::set_frozen(&env, &invoice_id, true, Some(reason));
+        InvoiceStorage::set_freeze_info(
+            &env,
+            &invoice_id,
+            &FreezeInfo {
+                reason,
+                frozen_by: admin.clone(),
+                frozen_at,
+            },
+        );
+
         // Emit InvoiceFrozen with freeze_appeal_channel so off-chain consumers
         // (dashboards, notification pipelines, indexers) can immediately surface
         // the appeals path to the affected business.  Issue #1959.
@@ -381,6 +394,24 @@ impl QuickLendXContract {
             reason.label(),
         );
         Ok(())
+    }
+
+    pub fn unfreeze_invoice(
+        env: Env,
+        admin: Address,
+        invoice_id: BytesN<32>,
+    ) -> Result<(), QuickLendXError> {
+        crate::admin::AdminStorage::require_admin(&env, &admin)?;
+        InvoiceStorage::set_frozen(&env, &invoice_id, false, None);
+        InvoiceStorage::remove_freeze_info(&env, &invoice_id);
+        Ok(())
+    }
+
+    pub fn get_invoice_freeze_info(
+        env: Env,
+        invoice_id: BytesN<32>,
+    ) -> Option<FreezeInfo> {
+        InvoiceStorage::get_freeze_info(&env, &invoice_id)
     }
 
     pub fn set_invoice_lock(
