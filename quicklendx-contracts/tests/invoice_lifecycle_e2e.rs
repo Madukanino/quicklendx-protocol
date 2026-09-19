@@ -146,6 +146,13 @@ fn assert_no_bid_or_escrow_created(fx: &Fixture, invoice_id: &BytesN<32>) {
     );
 }
 
+fn tx_id(env: &Env, suffix: u8) -> String {
+    let mut bytes = [b'0'; 64];
+    let hex = b"0123456789abcdef";
+    bytes[63] = hex[(suffix & 0x0f) as usize];
+    String::from_str(env, core::str::from_utf8(&bytes).unwrap())
+}
+
 // ============================================================================
 // Test 1 — Happy path: Upload → Verify → Bid → Fund → Partial → Settle
 // ============================================================================
@@ -318,11 +325,8 @@ fn test_invoice_lifecycle_happy_path() {
     // ── Stage 5: Process partial payment ────────────────────────────────────
     // Business makes a partial payment; total_paid must update, status stays Funded.
     let partial_amount: i128 = 40_000_000;
-    fx.client.process_partial_payment(
-        &invoice_id,
-        &partial_amount,
-        &String::from_str(&env, "partial-pay-1"),
-    );
+    fx.client
+        .process_partial_payment(&invoice_id, &partial_amount, &tx_id(&env, 1));
 
     let invoice = fx.client.get_invoice(&invoice_id);
     assert_eq!(
@@ -415,7 +419,7 @@ fn test_boundary_bid_equal_to_invoice_amount_accepts_and_funds_exactly() {
     let fx = setup_contract(&env);
     let tok = token::Client::new(&env, &fx.currency);
 
-    let invoice_amount: i128 = 10_000;
+    let invoice_amount: i128 = 10_000_000;
     let invoice_id =
         upload_verified_invoice(&fx, invoice_amount, "Boundary bid equal to invoice amount");
     let bid_salt = BytesN::from_array(&env, &[11u8; 32]);
@@ -427,7 +431,7 @@ fn test_boundary_bid_equal_to_invoice_amount_accepts_and_funds_exactly() {
         &fx.investor,
         &invoice_id,
         &invoice_amount,
-        &(invoice_amount + 1_000),
+        &(invoice_amount + 1_000_000),
         &bid_salt,
     );
 
@@ -464,7 +468,7 @@ fn test_single_overbid_rejected_without_balance_or_state_changes() {
     let fx = setup_contract(&env);
     let tok = token::Client::new(&env, &fx.currency);
 
-    let invoice_amount: i128 = 10_000;
+    let invoice_amount: i128 = 10_000_000;
     let invoice_id = upload_verified_invoice(&fx, invoice_amount, "Single overbid rejected");
     let overbid_amount = invoice_amount + 1;
     let bid_salt = BytesN::from_array(&env, &[12u8; 32]);
@@ -476,7 +480,7 @@ fn test_single_overbid_rejected_without_balance_or_state_changes() {
         &fx.investor,
         &invoice_id,
         &overbid_amount,
-        &(overbid_amount + 1_000),
+        &(overbid_amount + 1_000_000),
         &bid_salt,
     );
 
@@ -496,12 +500,13 @@ fn test_multiple_overbids_rejected_independently_without_side_effects() {
     let fx = setup_contract(&env);
     let tok = token::Client::new(&env, &fx.currency);
 
-    let invoice_amount: i128 = 10_000;
+    let invoice_amount: i128 = 10_000_000;
     let invoice_id = upload_verified_invoice(&fx, invoice_amount, "Multiple overbids rejected");
     let investor_balance_before = tok.balance(&fx.investor);
     let contract_balance_before = tok.balance(&fx.contract_id);
 
-    for (salt_byte, overbid_amount) in [(21u8, 10_001i128), (22, 10_500), (23, 14_999)] {
+    for (salt_byte, overbid_amount) in [(21u8, 10_000_001i128), (22, 10_500_000), (23, 14_999_000)]
+    {
         let bid_salt = BytesN::from_array(&env, &[salt_byte; 32]);
         let result = fx.client.try_place_bid(
             &fx.investor,
@@ -779,11 +784,8 @@ fn test_partial_then_full_settle() {
     // ── Stage 5: Multiple partial payments ──────────────────────────────────
     // Business makes three partial payments of 2 000 each (total 6 000).
     env.ledger().set_timestamp(2_000);
-    fx.client.process_partial_payment(
-        &invoice_id,
-        &20_000_000i128,
-        &String::from_str(&env, "partial-1"),
-    );
+    fx.client
+        .process_partial_payment(&invoice_id, &20_000_000i128, &tx_id(&env, 1));
     let invoice = fx.client.get_invoice(&invoice_id);
     assert_eq!(
         invoice.total_paid, 20_000_000,
@@ -796,11 +798,8 @@ fn test_partial_then_full_settle() {
     );
 
     env.ledger().set_timestamp(3_000);
-    fx.client.process_partial_payment(
-        &invoice_id,
-        &20_000_000i128,
-        &String::from_str(&env, "partial-2"),
-    );
+    fx.client
+        .process_partial_payment(&invoice_id, &20_000_000i128, &tx_id(&env, 2));
     let invoice = fx.client.get_invoice(&invoice_id);
     assert_eq!(
         invoice.total_paid, 40_000_000,
@@ -813,11 +812,8 @@ fn test_partial_then_full_settle() {
     );
 
     env.ledger().set_timestamp(4_000);
-    fx.client.process_partial_payment(
-        &invoice_id,
-        &20_000_000i128,
-        &String::from_str(&env, "partial-3"),
-    );
+    fx.client
+        .process_partial_payment(&invoice_id, &20_000_000i128, &tx_id(&env, 3));
     let invoice = fx.client.get_invoice(&invoice_id);
     assert_eq!(
         invoice.total_paid, 60_000_000,

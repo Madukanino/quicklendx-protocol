@@ -1014,8 +1014,6 @@ pub fn refund_escrow(
     invoice_id: &BytesN<32>,
     caller: &Address,
 ) -> Result<(), QuickLendXError> {
-    caller.require_auth();
-
     let mut escrow = EscrowStorage::get_escrow_by_invoice(env, invoice_id)
         .ok_or(QuickLendXError::StorageKeyNotFound)?;
 
