@@ -353,7 +353,8 @@ impl Vesting {
     pub fn release(env: &Env, beneficiary: &Address, id: u64) -> Result<i128, QuickLendXError> {
         beneficiary.require_auth();
 
-        let mut schedule = VestingStorage::get(env, id).unwrap();
+        let mut schedule =
+            VestingStorage::get(env, id).ok_or(QuickLendXError::StorageKeyNotFound)?;
 
         if &schedule.beneficiary != beneficiary {
             return Err(QuickLendXError::Unauthorized);
@@ -386,5 +387,341 @@ impl Vesting {
             (id, beneficiary.clone(), schedule.token.clone(), releasable),
         );
         Ok(releasable)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{QuickLendXContract, QuickLendXContractClient};
+    use soroban_sdk::testutils::{Address as _, Ledger as _};
+    use soroban_sdk::{token, Address, Env};
+
+    struct TestContext {
+        env: Env,
+        client: QuickLendXContractClient<'static>,
+        admin: Address,
+        beneficiary: Address,
+        token_id: Address,
+        token_client: token::Client<'static>,
+    }
+
+    fn setup_test() -> TestContext {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().set_timestamp(1_000);
+
+        let contract_id = env.register(QuickLendXContract, ());
+        let client = QuickLendXContractClient::new(&env, &contract_id);
+        let admin = Address::generate(&env);
+        let beneficiary = Address::generate(&env);
+        client.initialize_admin(&admin);
+
+        let token_admin = Address::generate(&env);
+        let token_id = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
+        let sac = token::StellarAssetClient::new(&env, &token_id);
+        let token_client = token::Client::new(&env, &token_id);
+
+        sac.mint(&admin, &100_000_000i128);
+        let exp = env.ledger().sequence() + 10_000;
+        token_client.approve(&admin, &contract_id, &100_000_000i128, &exp);
+
+        TestContext {
+            env,
+            client,
+            admin,
+            beneficiary,
+            token_id,
+            token_client,
+        }
+    }
+
+    #[test]
+    fn test_schedule_input_validation() {
+        let ctx = setup_test();
+
+        // 1. Invalid amount <= 0
+        let res = ctx.client.try_create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &0i128,
+            &1_000u64,
+            &100u64,
+            &2_000u64,
+        );
+        assert_eq!(res, Err(Ok(QuickLendXError::InvalidAmount)));
+
+        // 2. Start time in the past
+        let res = ctx.client.try_create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &10_000i128,
+            &999u64, // now is 1_000
+            &100u64,
+            &2_000u64,
+        );
+        assert_eq!(res, Err(Ok(QuickLendXError::InvalidTimestamp)));
+
+        // 3. End time <= Start time
+        let res = ctx.client.try_create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &10_000i128,
+            &1_000u64,
+            &100u64,
+            &1_000u64,
+        );
+        assert_eq!(res, Err(Ok(QuickLendXError::InvalidTimestamp)));
+
+        // 4. Cliff time >= End time
+        let res = ctx.client.try_create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &10_000i128,
+            &1_000u64,
+            &1_000u64, // cliff = 2_000 == end
+            &2_000u64,
+        );
+        assert_eq!(res, Err(Ok(QuickLendXError::InvalidTimestamp)));
+    }
+
+    #[test]
+    fn test_schedule_state_validation_helper() {
+        let env = Env::default();
+        let admin = Address::generate(&env);
+        let token = Address::generate(&env);
+        let beneficiary = Address::generate(&env);
+
+        let mut schedule = VestingSchedule {
+            id: 1,
+            token,
+            beneficiary,
+            total_amount: 1000,
+            released_amount: 0,
+            start_time: 1000,
+            cliff_time: 1500,
+            end_time: 2000,
+            created_at: 1000,
+            created_by: admin,
+        };
+
+        assert!(Vesting::validate_schedule_state(&schedule).is_ok());
+
+        // total_amount <= 0
+        schedule.total_amount = 0;
+        assert_eq!(
+            Vesting::validate_schedule_state(&schedule),
+            Err(QuickLendXError::InvalidAmount)
+        );
+        schedule.total_amount = 1000;
+
+        // released_amount > total_amount
+        schedule.released_amount = 1001;
+        assert_eq!(
+            Vesting::validate_schedule_state(&schedule),
+            Err(QuickLendXError::InvalidAmount)
+        );
+        schedule.released_amount = 0;
+
+        // start_time >= end_time
+        schedule.start_time = 2000;
+        assert_eq!(
+            Vesting::validate_schedule_state(&schedule),
+            Err(QuickLendXError::InvalidTimestamp)
+        );
+        schedule.start_time = 1000;
+
+        // cliff_time < start_time
+        schedule.cliff_time = 999;
+        assert_eq!(
+            Vesting::validate_schedule_state(&schedule),
+            Err(QuickLendXError::InvalidTimestamp)
+        );
+
+        // cliff_time >= end_time
+        schedule.cliff_time = 2000;
+        assert_eq!(
+            Vesting::validate_schedule_state(&schedule),
+            Err(QuickLendXError::InvalidTimestamp)
+        );
+    }
+
+    #[test]
+    fn test_vesting_cliff_and_linear_vesting_lifecycle() {
+        let ctx = setup_test();
+
+        let total = 1_000_000i128;
+        let start = 1_000u64;
+        let cliff_seconds = 500u64; // cliff = 1_500
+        let end = 2_000u64;
+
+        let id = ctx.client.create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &total,
+            &start,
+            &cliff_seconds,
+            &end,
+        );
+
+        let sched = ctx.client.get_vesting_schedule(&id).unwrap();
+        assert_eq!(sched.total_amount, total);
+        assert_eq!(sched.released_amount, 0);
+        assert_eq!(sched.cliff_time, 1_500);
+
+        // 1. Before cliff (t = 1_200)
+        ctx.env.ledger().set_timestamp(1_200);
+        assert_eq!(ctx.client.get_vesting_vested(&id), Some(0));
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(0));
+
+        let res = ctx.client.try_release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(res, Err(Ok(QuickLendXError::InvalidTimestamp)));
+
+        // 2. Exactly at cliff (t = 1_500, 50% through duration)
+        ctx.env.ledger().set_timestamp(1_500);
+        assert_eq!(ctx.client.get_vesting_vested(&id), Some(500_000));
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(500_000));
+
+        let released = ctx.client.release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(released, 500_000);
+        assert_eq!(ctx.token_client.balance(&ctx.beneficiary), 500_000);
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(0));
+
+        // 3. Idempotent release at same timestamp
+        let re_release = ctx.client.release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(re_release, 0);
+
+        // 4. Progress past cliff (t = 1_750, 75% through duration)
+        ctx.env.ledger().set_timestamp(1_750);
+        assert_eq!(ctx.client.get_vesting_vested(&id), Some(750_000));
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(250_000));
+
+        let released_2 = ctx.client.release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(released_2, 250_000);
+        assert_eq!(ctx.token_client.balance(&ctx.beneficiary), 750_000);
+
+        // 5. At end time (t = 2_000, 100%)
+        ctx.env.ledger().set_timestamp(2_000);
+        assert_eq!(ctx.client.get_vesting_vested(&id), Some(1_000_000));
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(250_000));
+
+        let released_final = ctx.client.release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(released_final, 250_000);
+        assert_eq!(ctx.token_client.balance(&ctx.beneficiary), 1_000_000);
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(0));
+
+        // 6. After end time (t = 5_000)
+        ctx.env.ledger().set_timestamp(5_000);
+        assert_eq!(ctx.client.get_vesting_vested(&id), Some(1_000_000));
+        assert_eq!(ctx.client.get_vesting_releasable(&id), Some(0));
+        let after_end = ctx.client.release_vested_tokens(&ctx.beneficiary, &id);
+        assert_eq!(after_end, 0);
+    }
+
+    #[test]
+    fn test_unauthorized_beneficiary_release() {
+        let ctx = setup_test();
+        let stranger = Address::generate(&ctx.env);
+
+        let id = ctx.client.create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &100_000i128,
+            &1_000u64,
+            &100u64,
+            &2_000u64,
+        );
+
+        ctx.env.ledger().set_timestamp(1_500);
+        let res = ctx.client.try_release_vested_tokens(&stranger, &id);
+        assert_eq!(res, Err(Ok(QuickLendXError::Unauthorized)));
+    }
+
+    #[test]
+    fn test_nonexistent_vesting_schedule_returns_error_or_none() {
+        let ctx = setup_test();
+
+        assert_eq!(ctx.client.get_vesting_schedule(&999), None);
+        assert_eq!(ctx.client.get_vesting_vested(&999), None);
+        assert_eq!(ctx.client.get_vesting_releasable(&999), None);
+
+        let res = ctx.client.try_release_vested_tokens(&ctx.beneficiary, &999);
+        assert_eq!(res, Err(Ok(QuickLendXError::StorageKeyNotFound)));
+    }
+
+    #[test]
+    fn test_vesting_summary_for_user() {
+        let ctx = setup_test();
+        let other_user = Address::generate(&ctx.env);
+
+        // Schedule 1 for beneficiary: 1_000_000 total
+        let id1 = ctx.client.create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &1_000_000i128,
+            &1_000u64,
+            &200u64,
+            &2_000u64,
+        );
+
+        // Schedule 2 for beneficiary: 2_000_000 total
+        let _id2 = ctx.client.create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &ctx.beneficiary,
+            &2_000_000i128,
+            &1_000u64,
+            &400u64,
+            &3_000u64,
+        );
+
+        // Schedule 3 for other_user: 500_000 total
+        let _id3 = ctx.client.create_vesting_schedule(
+            &ctx.admin,
+            &ctx.token_id,
+            &other_user,
+            &500_000i128,
+            &1_000u64,
+            &100u64,
+            &2_000u64,
+        );
+
+        // Check before cliff
+        let summary_empty = ctx.client.get_vesting_summary(&ctx.beneficiary);
+        assert_eq!(summary_empty.grant_count, 2);
+        assert_eq!(summary_empty.total_granted, 3_000_000);
+        assert_eq!(summary_empty.total_released, 0);
+        assert_eq!(summary_empty.total_releasable, 0);
+
+        // Advance to t = 1_500
+        ctx.env.ledger().set_timestamp(1_500);
+        let summary_mid = ctx.client.get_vesting_summary(&ctx.beneficiary);
+        // sched 1 (duration 1000): 500 elapsed -> 500_000 releasable
+        // sched 2 (duration 2000): 500 elapsed -> 500_000 releasable
+        assert_eq!(summary_mid.grant_count, 2);
+        assert_eq!(summary_mid.total_granted, 3_000_000);
+        assert_eq!(summary_mid.total_releasable, 1_000_000);
+
+        // Release on sched 1
+        ctx.client.release_vested_tokens(&ctx.beneficiary, &id1);
+
+        let summary_after_rel = ctx.client.get_vesting_summary(&ctx.beneficiary);
+        assert_eq!(summary_after_rel.total_released, 500_000);
+        assert_eq!(summary_after_rel.total_releasable, 500_000);
+
+        // Check user with no schedules
+        let stranger = Address::generate(&ctx.env);
+        let summary_stranger = ctx.client.get_vesting_summary(&stranger);
+        assert_eq!(summary_stranger.grant_count, 0);
+        assert_eq!(summary_stranger.total_granted, 0);
     }
 }
