@@ -110,11 +110,11 @@ jobs:
           cargo llvm-cov clean --workspace
 
           cargo llvm-cov \
-            --lib \
+            --all-targets \
             --summary-only
 
           cargo llvm-cov \
-            --lib \
+            --all-targets \
             --fail-under-lines 50 \
             --lcov \
             --output-path coverage/lcov.info

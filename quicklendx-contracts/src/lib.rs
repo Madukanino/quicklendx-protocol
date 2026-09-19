@@ -348,6 +348,8 @@ mod test_category_breakdown;
 mod test_clock_rollover;
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_compute_yield_props;
+#[cfg(test)]
+mod test_coverage_boost;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_default_grace_boundary;
 #[cfg(all(test, feature = "legacy-tests"))]
