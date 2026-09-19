@@ -94,6 +94,8 @@ fn accept_bid_blocked_when_invoice_is_expired() {
             InvoiceCategory::Services,
             Vec::new(&env),
             None,
+            None,
+            None,
         )
         .unwrap();
         let id = invoice.id.clone();
@@ -139,11 +141,9 @@ fn accept_bid_blocked_when_invoice_is_expired() {
 
     // Accepting the bid must now fail — the invoice has expired
     env.as_contract(&contract_id, || {
-        let err = crate::escrow::load_accept_bid_context(&env, &invoice_id, &bid_id)
-            .expect_err("accepting bid on expired invoice must fail");
-        assert_eq!(
-            err,
-            QuickLendXError::OperationNotAllowed,
+        let result = crate::escrow::load_accept_bid_context(&env, &invoice_id, &bid_id);
+        assert!(
+            matches!(result, Err(QuickLendXError::OperationNotAllowed)),
             "must return OperationNotAllowed when invoice due_date has passed"
         );
 
@@ -181,6 +181,8 @@ fn accept_bid_succeeds_before_due_date() {
             String::from_str(&env, "Test invoice"),
             InvoiceCategory::Services,
             Vec::new(&env),
+            None,
+            None,
             None,
         )
         .unwrap();

@@ -79,6 +79,8 @@ fn make_invoice(env: &Env, id: BytesN<32>) -> Invoice {
         payment_history: Vec::new(env),
         created_at: env.ledger().timestamp(),
         origination_fee_bps: None,
+        late_payment_penalty_bps: None,
+        early_payment_discount_bps: None,
     }
 }
 

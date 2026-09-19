@@ -4,10 +4,62 @@
 //! InvoiceLockExpired error, providing defense-in-depth against
 //! indefinite invoice freezing.
 
-use soroban_sdk::{Address, BytesN, Env};
+#![cfg(test)]
 
-use crate::testutils::{create_test_invoice, create_verified_business, setup};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    Address, BytesN, Env, String, Vec,
+};
+
 use crate::types::BusinessFreezeReason;
+use crate::{QuickLendXContract, QuickLendXContractClient};
+
+fn setup() -> (Env, QuickLendXContractClient<'static>, Address) {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(QuickLendXContract, ());
+    let client = QuickLendXContractClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+    (env, client, admin)
+}
+
+fn create_verified_business(
+    env: &Env,
+    client: &QuickLendXContractClient,
+    admin: &Address,
+) -> Address {
+    let business = Address::generate(env);
+    client.submit_kyc_application(&business, &String::from_str(env, "KYC data"));
+    client.verify_business(admin, &business);
+    business
+}
+
+fn create_test_invoice(
+    env: &Env,
+    client: &QuickLendXContractClient,
+    business: &Address,
+    amount: i128,
+) -> (BytesN<32>, Address) {
+    let token_admin = Address::generate(env);
+    let currency = env
+        .register_stellar_asset_contract_v2(token_admin)
+        .address();
+    let due_date = env.ledger().timestamp() + 864_000;
+    let invoice_id = client.upload_invoice(
+        business,
+        &amount,
+        &currency,
+        &due_date,
+        &String::from_str(env, "test invoice"),
+        &crate::invoice::InvoiceCategory::Services,
+        &Vec::new(env),
+        &None,
+        &None,
+        &None,
+    );
+    (invoice_id, currency)
+}
 
 #[test]
 fn test_expired_lock_rejects_actions() {

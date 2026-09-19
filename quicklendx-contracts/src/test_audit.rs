@@ -8,6 +8,7 @@ use crate::audit::{
     AuditLogEntry, AuditOperation, AuditOperationFilter, AuditQueryFilter, AuditStorage,
 };
 use crate::invoice::InvoiceCategory;
+use alloc::format;
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     Address, BytesN, Env, String, Vec,

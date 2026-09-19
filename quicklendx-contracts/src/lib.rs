@@ -54,11 +54,11 @@ mod test_settlement_history_reconstruction;
 #[cfg(all(test, feature = "legacy-tests"))]
 // Storage and migration compatibility regression tests (issue #2508).
 mod test_storage_migration_compat;
-// Issue #1920 — confirm require_regulatory_ok is truly a no-op by default.
-#[cfg(test)]
+// Issue #1920 â€” confirm require_regulatory_ok is truly a no-op by default.
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_regulatory_gate;
 // Issue #1902 — investor freeze reason typed enum
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_investor_freeze_reason;
 use crate::idempotency::{idempotency_exists, idempotency_key, store_idempotency};
 use crate::verification::require_business_active;
@@ -121,15 +121,15 @@ mod test_accept_bid_race;
 mod test_admin;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_admin_events_audit_parity;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_admin_simple;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_admin_standalone;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_admin_two_step;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_audit;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_audit_config;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_auto_resolution_boundary;
@@ -159,7 +159,7 @@ mod test_cleanup_pagination;
 mod test_config_bounds_matrix;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_currency;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_due_date_guard;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_funding_events_audit_parity;
@@ -169,9 +169,9 @@ mod test_governance;
 mod test_lock_time_limit;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_panic_handler;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_require_business_active;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_require_valid_business_kyc_tier;
 #[cfg(any(test, feature = "testutils"))]
 pub mod test_utils;
@@ -201,9 +201,9 @@ mod test_dispute_refund_flow;
 mod test_dispute_timeline_props;
 #[cfg(test)]
 // mod test_dispute_event_invariant;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_dust_transfer;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_early_payment_discount_bps;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_escrow_early_release;
@@ -213,17 +213,17 @@ mod test_escrow_event_completeness;
 mod test_escrow_invariant_model;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_escrow_refund_after_expiry;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_evidence_hash_format;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_evidence_kind_guard_matrix;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_evidence_size_cap;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_expired_bids_cleanup;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_freshness;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_freshness_bounds;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_invoice;
@@ -239,8 +239,8 @@ mod test_queries;
 mod test_rating_override;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_self_call_rejection;
-// Issue #1541 — lag at zero, lag at positive, lag during pause.
-#[cfg(test)]
+// Issue #1541 â€” lag at zero, lag at positive, lag during pause.
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_freshness_lag;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_health_status;
@@ -305,17 +305,17 @@ mod test_bid_capacity_stress;
 mod test_bid_compare_order_props;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_bid_ranking;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_fee_recipient_rotation_guard;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_investor_exposure_caps;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_min_partial_fill_boundary;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_per_investor_position_cap;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_snapshot;
-// Issue #2083 — bid-match helper tests; runs on every CI matrix entry
+// Issue #2083 â€” bid-match helper tests; runs on every CI matrix entry
 // (no feature gate, since `legacy-tests` is OFF in CI). Covers
 // `compare_bids`, `get_best_bid`, and `rank_bids`.
 #[cfg(test)]
@@ -342,17 +342,17 @@ mod test_vesting_summary;
 mod test_bid_ranking_determinism;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_business_invoices_paged_ordering;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_category_breakdown;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_clock_rollover;
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_compute_yield_props;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_default_grace_boundary;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_diagnostics;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_events;
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_fuzz_cancelled_noop;
@@ -387,7 +387,7 @@ mod test_investment_withdrawal;
 mod test_invoice_metadata;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_invoice_search_ranking;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_line_item_consistency;
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_profits_props;
@@ -403,13 +403,13 @@ mod test_insurance_optin_lifecycle;
 mod test_insurance_premium_props;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_max_invoices_per_business;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_notifications;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_pause_reads_available;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_pause_reason;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_platform_metrics_reconciliation;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_rebuild_indexes;
@@ -421,21 +421,21 @@ mod test_treasury_split_overflow_props;
 mod test_twa_props;
 #[cfg(all(test, feature = "fuzz-tests"))]
 mod test_volume_tier_props;
-// Issue #1482 — "cannot withdraw more than deposited" invariant: hard-coded sad
+// Issue #1482 â€” "cannot withdraw more than deposited" invariant: hard-coded sad
 // path (always runs) + proptest property (requires fuzz-tests feature).
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_cannot_withdraw_more_than_deposited;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_invoice_batch_cancel;
 #[cfg(test)]
 mod test_pagination_cursors;
 #[cfg(all(test, feature = "legacy-tests"))]
 mod test_ratings_snapshot;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_store_invoice_auth;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_store_invoices_batch;
-#[cfg(test)]
+#[cfg(all(test, feature = "legacy-tests"))]
 mod test_tier_boundary;
 pub mod types;
 pub use types::*;

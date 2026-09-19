@@ -65,6 +65,9 @@ fn setup_invoice(
         &String::from_str(env, "test invoice"),
         &crate::invoice::InvoiceCategory::Services,
         &Vec::new(env),
+        &None,
+        &None,
+        &None,
     );
     (invoice_id, currency)
 }

@@ -114,7 +114,7 @@ mod tests {
         let business = Address::random(&env);
 
         // Create invoices in different categories
-        let categories_and_counts = vec![
+        let categories_and_counts = [
             (InvoiceCategory::Services, 2),
             (InvoiceCategory::Products, 3),
             (InvoiceCategory::Consulting, 1),
@@ -131,30 +131,49 @@ mod tests {
             }
         }
 
-        let breakdown: Vec<(InvoiceCategory, u32)> = InvoiceStorage::get_all_categories(&env)
-            .iter()
-            .map(|category| {
-                let count =
-                    InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
-                (category, count)
-            })
-            .filter(|(_cat, count)| *count > 0)
-            .collect();
+        let breakdown: alloc::vec::Vec<(InvoiceCategory, u32)> =
+            InvoiceStorage::get_all_categories(&env)
+                .iter()
+                .map(|category| {
+                    let count =
+                        InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
+                    (category, count)
+                })
+                .filter(|(_cat, count)| *count > 0)
+                .collect();
 
         // Should have 4 categories
         assert_eq!(breakdown.len(), 4);
 
         // Verify counts match
-        let mut count_map: std::collections::HashMap<InvoiceCategory, u32> =
-            std::collections::HashMap::new();
-        for (cat, count) in breakdown.iter() {
-            count_map.insert(*cat, *count);
-        }
-
-        assert_eq!(count_map.get(&InvoiceCategory::Services), Some(&2u32));
-        assert_eq!(count_map.get(&InvoiceCategory::Products), Some(&3u32));
-        assert_eq!(count_map.get(&InvoiceCategory::Consulting), Some(&1u32));
-        assert_eq!(count_map.get(&InvoiceCategory::Technology), Some(&4u32));
+        assert_eq!(
+            breakdown
+                .iter()
+                .find(|(cat, _)| *cat == InvoiceCategory::Services)
+                .map(|(_, c)| *c),
+            Some(2)
+        );
+        assert_eq!(
+            breakdown
+                .iter()
+                .find(|(cat, _)| *cat == InvoiceCategory::Products)
+                .map(|(_, c)| *c),
+            Some(3)
+        );
+        assert_eq!(
+            breakdown
+                .iter()
+                .find(|(cat, _)| *cat == InvoiceCategory::Consulting)
+                .map(|(_, c)| *c),
+            Some(1)
+        );
+        assert_eq!(
+            breakdown
+                .iter()
+                .find(|(cat, _)| *cat == InvoiceCategory::Technology)
+                .map(|(_, c)| *c),
+            Some(4)
+        );
     }
 
     #[test]
@@ -202,7 +221,7 @@ mod tests {
         let business = Address::random(&env);
 
         // Create at least one invoice in each category
-        let all_categories = vec![
+        let all_categories = [
             InvoiceCategory::Services,
             InvoiceCategory::Goods,
             InvoiceCategory::Consulting,
@@ -220,15 +239,16 @@ mod tests {
             InvoiceStorage::store(&env, &invoice);
         }
 
-        let breakdown: Vec<(InvoiceCategory, u32)> = InvoiceStorage::get_all_categories(&env)
-            .iter()
-            .map(|category| {
-                let count =
-                    InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
-                (category, count)
-            })
-            .filter(|(_cat, count)| *count > 0)
-            .collect();
+        let breakdown: alloc::vec::Vec<(InvoiceCategory, u32)> =
+            InvoiceStorage::get_all_categories(&env)
+                .iter()
+                .map(|category| {
+                    let count =
+                        InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
+                    (category, count)
+                })
+                .filter(|(_cat, count)| *count > 0)
+                .collect();
 
         // Should have all 9 categories
         assert_eq!(breakdown.len(), 9);
@@ -258,15 +278,16 @@ mod tests {
             InvoiceStorage::store(&env, &invoice);
         }
 
-        let breakdown: Vec<(InvoiceCategory, u32)> = InvoiceStorage::get_all_categories(&env)
-            .iter()
-            .map(|category| {
-                let count =
-                    InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
-                (category, count)
-            })
-            .filter(|(_cat, count)| *count > 0)
-            .collect();
+        let breakdown: alloc::vec::Vec<(InvoiceCategory, u32)> =
+            InvoiceStorage::get_all_categories(&env)
+                .iter()
+                .map(|category| {
+                    let count =
+                        InvoiceStorage::get_invoice_count_by_category_from_index(&env, &category);
+                    (category, count)
+                })
+                .filter(|(_cat, count)| *count > 0)
+                .collect();
 
         let total_from_breakdown: u32 = breakdown.iter().map(|(_cat, count)| count).sum();
 

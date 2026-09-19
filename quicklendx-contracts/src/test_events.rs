@@ -25,8 +25,11 @@ use super::*;
 use crate::audit::{AuditOperationFilter, AuditQueryFilter};
 use crate::errors::QuickLendXError;
 use crate::events::{
-    TOPIC_BID_ACCEPTED, TOPIC_BID_EXPIRED, TOPIC_BID_PLACED, TOPIC_BID_WITHDRAWN,
-    TOPIC_DISPUTE_CREATED, TOPIC_DISPUTE_REJECTED, TOPIC_DISPUTE_RESOLVED,
+    BidAccepted, BidExpired, BidPlaced, BidWithdrawn, DisputeCreated, DisputeResolved,
+    DisputeUnderReview, EscrowCreated, EscrowRefunded, EscrowReleased, InvoiceCancelled,
+    InvoiceDefaulted, InvoiceExpired, InvoiceFunded, InvoiceSettled, InvoiceUploaded,
+    InvoiceVerified, PartialPayment, TOPIC_BID_ACCEPTED, TOPIC_BID_EXPIRED, TOPIC_BID_PLACED,
+    TOPIC_BID_WITHDRAWN, TOPIC_DISPUTE_CREATED, TOPIC_DISPUTE_REJECTED, TOPIC_DISPUTE_RESOLVED,
     TOPIC_DISPUTE_UNDER_REVIEW, TOPIC_ESCROW_CREATED, TOPIC_ESCROW_REFUNDED, TOPIC_ESCROW_RELEASED,
     TOPIC_INVOICE_CANCELLED, TOPIC_INVOICE_DEFAULTED, TOPIC_INVOICE_EXPIRED, TOPIC_INVOICE_FUNDED,
     TOPIC_INVOICE_SETTLED, TOPIC_INVOICE_SETTLED_FINAL, TOPIC_INVOICE_UPLOADED,
