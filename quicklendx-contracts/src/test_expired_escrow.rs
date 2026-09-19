@@ -40,9 +40,43 @@ fn setup_env() -> (Env, Address, Address, Address, Address) {
     let business = Address::generate(&env);
     let investor = Address::generate(&env);
 
-    // Initialize admin
+    // Initialize admin and verification records
     env.as_contract(&contract_id, || {
         crate::admin::AdminStorage::initialize(&env, &admin).unwrap();
+
+        // Verify business
+        let b_ver = crate::verification::BusinessVerification {
+            business: business.clone(),
+            status: crate::verification::BusinessVerificationStatus::Verified,
+            verified_at: Some(env.ledger().timestamp()),
+            verified_by: Some(admin.clone()),
+            kyc_data: String::from_str(&env, "business kyc"),
+            submitted_at: env.ledger().timestamp(),
+            rejection_reason: None,
+        };
+        crate::verification::BusinessVerificationStorage::store_verification(&env, &b_ver);
+
+        // Verify investor
+        let inv_ver = crate::verification::InvestorVerification {
+            investor: investor.clone(),
+            status: crate::verification::BusinessVerificationStatus::Verified,
+            verified_at: Some(env.ledger().timestamp()),
+            verified_by: Some(admin.clone()),
+            kyc_data: String::from_str(&env, "investor kyc"),
+            investment_limit: 10_000_000i128,
+            submitted_at: env.ledger().timestamp(),
+            tier: crate::verification::InvestorTier::VIP,
+            risk_level: crate::verification::InvestorRiskLevel::Low,
+            risk_score: 90,
+            total_invested: 0,
+            total_returns: 0,
+            successful_investments: 0,
+            defaulted_investments: 0,
+            last_activity: env.ledger().timestamp(),
+            rejection_reason: None,
+            compliance_notes: None,
+        };
+        crate::verification::InvestorVerificationStorage::store(&env, &inv_ver);
     });
 
     (env, contract_id, admin, business, investor)

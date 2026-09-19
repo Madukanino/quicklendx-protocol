@@ -38,6 +38,7 @@ fn create_verified_business(
 fn create_test_invoice(
     env: &Env,
     client: &QuickLendXContractClient,
+    admin: &Address,
     business: &Address,
     amount: i128,
 ) -> (BytesN<32>, Address) {
@@ -45,7 +46,8 @@ fn create_test_invoice(
     let currency = env
         .register_stellar_asset_contract_v2(token_admin)
         .address();
-    let due_date = env.ledger().timestamp() + 864_000;
+    client.add_currency(admin, &currency);
+    let due_date = env.ledger().timestamp() + 10_000_000;
     let invoice_id = client.upload_invoice(
         business,
         &amount,
@@ -58,6 +60,7 @@ fn create_test_invoice(
         &None,
         &None,
     );
+    client.verify_invoice(&invoice_id);
     (invoice_id, currency)
 }
 
@@ -65,7 +68,7 @@ fn create_test_invoice(
 fn test_expired_lock_rejects_actions() {
     let (env, client, admin) = setup();
     let business = create_verified_business(&env, &client, &admin);
-    let (invoice_id, _) = create_test_invoice(&env, &client, &business, 100_000);
+    let (invoice_id, _) = create_test_invoice(&env, &client, &admin, &business, 100_000);
 
     // Freeze the invoice
     client.freeze_invoice(&admin, &invoice_id, &BusinessFreezeReason::AdminAction);
@@ -79,6 +82,8 @@ fn test_expired_lock_rejects_actions() {
 
     // Attempt to place a bid - should fail with InvoiceLockExpired
     let investor = Address::generate(&env);
+    client.submit_investor_kyc(&investor, &String::from_str(&env, "KYC data"));
+    client.verify_investor(&investor, &1_000_000);
     let result = client.try_place_bid(
         &investor,
         &invoice_id,
@@ -98,7 +103,7 @@ fn test_expired_lock_rejects_actions() {
 fn test_fresh_lock_allows_actions() {
     let (env, client, admin) = setup();
     let business = create_verified_business(&env, &client, &admin);
-    let (invoice_id, _) = create_test_invoice(&env, &client, &business, 100_000);
+    let (invoice_id, _) = create_test_invoice(&env, &client, &admin, &business, 100_000);
 
     // Freeze the invoice
     client.freeze_invoice(&admin, &invoice_id, &BusinessFreezeReason::AdminAction);
@@ -112,6 +117,8 @@ fn test_fresh_lock_allows_actions() {
 
     // Attempt to place a bid - should fail with InvoiceFrozen (not expired)
     let investor = Address::generate(&env);
+    client.submit_investor_kyc(&investor, &String::from_str(&env, "KYC data"));
+    client.verify_investor(&investor, &1_000_000);
     let result = client.try_place_bid(
         &investor,
         &invoice_id,
