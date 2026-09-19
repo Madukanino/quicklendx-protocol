@@ -3,7 +3,9 @@
 //! This module defines storage keys, indexing strategies, and storage operations
 //! for efficient data retrieval and management.
 
-use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, String, Symbol, Vec};
+use soroban_sdk::{
+    contracttype, symbol_short, Address, BytesN, Env, String, Symbol, TryFromVal, Vec,
+};
 
 use crate::errors::QuickLendXError;
 use crate::protocol_limits;
@@ -528,18 +530,17 @@ impl InvoiceStorage {
 
     pub fn is_frozen(env: &Env, invoice_id: &BytesN<32>) -> bool {
         let key = DataKey::FrozenInvoice(invoice_id.clone());
-        if let Some(lock) = env.storage().persistent().get::<_, InvoiceLock>(&key) {
+        if let Some(raw_val) = env.storage().persistent().get::<_, soroban_sdk::Val>(&key) {
             extend_persistent_ttl(env, &key);
-            lock.is_locked()
-        } else if env
-            .storage()
-            .persistent()
-            .get::<_, BusinessFreezeReason>(&key)
-            .is_some()
-        {
-            // Backward-compatible: a typed freeze reason also means frozen.
-            extend_persistent_ttl(env, &key);
-            true
+            if BusinessFreezeReason::try_from_val(env, &raw_val).is_ok() {
+                true
+            } else if let Ok(lock) = InvoiceLock::try_from_val(env, &raw_val) {
+                lock.is_locked()
+            } else if let Ok(frozen_bool) = bool::try_from_val(env, &raw_val) {
+                frozen_bool
+            } else {
+                true
+            }
         } else {
             false
         }

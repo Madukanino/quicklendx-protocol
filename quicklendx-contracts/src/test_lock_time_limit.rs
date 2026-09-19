@@ -92,10 +92,9 @@ fn test_expired_lock_rejects_actions() {
         &BytesN::from_array(&env, &[0u8; 32]),
     );
 
-    assert!(result.is_err());
     assert_eq!(
-        result.unwrap_err().unwrap(),
-        crate::errors::QuickLendXError::InvoiceLockExpired
+        result,
+        Err(Ok(crate::errors::QuickLendXError::InvoiceLockExpired))
     );
 }
 
@@ -127,10 +126,9 @@ fn test_fresh_lock_allows_actions() {
         &BytesN::from_array(&env, &[0u8; 32]),
     );
 
-    assert!(result.is_err());
     assert_eq!(
-        result.unwrap_err().unwrap(),
-        crate::errors::QuickLendXError::InvoiceFrozen
+        result,
+        Err(Ok(crate::errors::QuickLendXError::InvoiceFrozen))
     );
 
     // At the exact boundary (30 days = 2_592_000s), lock is still fresh (InvoiceFrozen, not expired)
@@ -144,10 +142,9 @@ fn test_fresh_lock_allows_actions() {
         &BytesN::from_array(&env, &[1u8; 32]),
     );
 
-    assert!(result_boundary.is_err());
     assert_eq!(
-        result_boundary.unwrap_err().unwrap(),
-        crate::errors::QuickLendXError::InvoiceFrozen
+        result_boundary,
+        Err(Ok(crate::errors::QuickLendXError::InvoiceFrozen))
     );
 }
 
