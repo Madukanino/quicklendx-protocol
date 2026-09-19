@@ -31,7 +31,7 @@ fn test_cancel_treasury_rotation_by_admin_succeeds() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #1858)")]
+#[should_panic(expected = "Error(Contract, #1854)")]
 fn test_cancel_treasury_rotation_fails_if_no_pending_rotation() {
     let (_env, client, _admin) = setup();
     client.cancel_treasury_rotation();
