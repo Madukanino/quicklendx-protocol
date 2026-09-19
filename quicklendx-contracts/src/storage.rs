@@ -555,8 +555,10 @@ impl InvoiceStorage {
     ) -> Result<(), QuickLendXError> {
         if let Some(freeze_info) = Self::get_freeze_info(env, invoice_id) {
             let current_time = env.ledger().timestamp();
-            let lock_age = current_time.saturating_sub(freeze_info.frozen_at);
-            if lock_age > LOCK_TIME_LIMIT_SECONDS {
+            let expires_at = freeze_info
+                .frozen_at
+                .saturating_add(LOCK_TIME_LIMIT_SECONDS);
+            if current_time > expires_at {
                 return Err(QuickLendXError::InvoiceLockExpired);
             }
         }

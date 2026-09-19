@@ -17,9 +17,11 @@ use crate::{QuickLendXContract, QuickLendXContractClient};
 fn setup() -> (Env, QuickLendXContractClient<'static>, Address) {
     let env = Env::default();
     env.mock_all_auths();
+    env.ledger().set_timestamp(1_000);
     let contract_id = env.register(QuickLendXContract, ());
     let client = QuickLendXContractClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
+    client.initialize_admin(&admin);
     client.set_admin(&admin);
     (env, client, admin)
 }
@@ -70,15 +72,13 @@ fn test_expired_lock_rejects_actions() {
     let business = create_verified_business(&env, &client, &admin);
     let (invoice_id, _) = create_test_invoice(&env, &client, &admin, &business, 100_000);
 
-    // Freeze the invoice
+    // Freeze the invoice at timestamp 1_000
     client.freeze_invoice(&admin, &invoice_id, &BusinessFreezeReason::AdminAction);
     assert!(client.get_invoice_freeze_info(&invoice_id).is_some());
 
     // Advance time beyond the lock time limit (30 days + 1 second)
-    let current_time = env.ledger().timestamp();
     let thirty_days_seconds = 2_592_000; // LOCK_TIME_LIMIT_SECONDS
-    env.ledger()
-        .set_timestamp(current_time + thirty_days_seconds + 1);
+    env.ledger().set_timestamp(1_000 + thirty_days_seconds + 1);
 
     // Attempt to place a bid - should fail with InvoiceLockExpired
     let investor = Address::generate(&env);
@@ -105,20 +105,20 @@ fn test_fresh_lock_allows_actions() {
     let business = create_verified_business(&env, &client, &admin);
     let (invoice_id, _) = create_test_invoice(&env, &client, &admin, &business, 100_000);
 
-    // Freeze the invoice
+    // Freeze the invoice at timestamp 1_000
     client.freeze_invoice(&admin, &invoice_id, &BusinessFreezeReason::AdminAction);
     assert!(client.get_invoice_freeze_info(&invoice_id).is_some());
 
-    // Keep time within the lock time limit (29 days)
-    let current_time = env.ledger().timestamp();
-    let twenty_nine_days_seconds = 2_505_600; // 29 days
-    env.ledger()
-        .set_timestamp(current_time + twenty_nine_days_seconds);
-
-    // Attempt to place a bid - should fail with InvoiceFrozen (not expired)
+    // Setup verified investor
     let investor = Address::generate(&env);
     client.submit_investor_kyc(&investor, &String::from_str(&env, "KYC data"));
     client.verify_investor(&investor, &1_000_000);
+
+    // Keep time within the lock time limit (29 days)
+    let twenty_nine_days_seconds = 2_505_600; // 29 days
+    env.ledger().set_timestamp(1_000 + twenty_nine_days_seconds);
+
+    // Attempt to place a bid - should fail with InvoiceFrozen (not expired)
     let result = client.try_place_bid(
         &investor,
         &invoice_id,
@@ -132,4 +132,54 @@ fn test_fresh_lock_allows_actions() {
         result.unwrap_err().unwrap(),
         crate::errors::QuickLendXError::InvoiceFrozen
     );
+
+    // At the exact boundary (30 days = 2_592_000s), lock is still fresh (InvoiceFrozen, not expired)
+    let thirty_days_seconds = 2_592_000;
+    env.ledger().set_timestamp(1_000 + thirty_days_seconds);
+    let result_boundary = client.try_place_bid(
+        &investor,
+        &invoice_id,
+        &10_000,
+        &11_000,
+        &BytesN::from_array(&env, &[1u8; 32]),
+    );
+
+    assert!(result_boundary.is_err());
+    assert_eq!(
+        result_boundary.unwrap_err().unwrap(),
+        crate::errors::QuickLendXError::InvoiceFrozen
+    );
+}
+
+#[test]
+fn test_require_lock_within_time_limit_boundary_direct() {
+    let (env, client, admin) = setup();
+    let business = create_verified_business(&env, &client, &admin);
+    let (invoice_id, _) = create_test_invoice(&env, &client, &admin, &business, 100_000);
+
+    client.freeze_invoice(&admin, &invoice_id, &BusinessFreezeReason::AdminAction);
+
+    // Initial time (fresh)
+    env.as_contract(&client.address, || {
+        assert!(
+            crate::storage::InvoiceStorage::require_lock_within_time_limit(&env, &invoice_id)
+                .is_ok()
+        );
+    });
+
+    // Exact 30 days (fresh)
+    env.ledger().set_timestamp(1_000 + 2_592_000);
+    env.as_contract(&client.address, || {
+        assert!(
+            crate::storage::InvoiceStorage::require_lock_within_time_limit(&env, &invoice_id)
+                .is_ok()
+        );
+    });
+
+    // 30 days + 1s (expired)
+    env.ledger().set_timestamp(1_000 + 2_592_000 + 1);
+    env.as_contract(&client.address, || {
+        let err = crate::storage::InvoiceStorage::require_lock_within_time_limit(&env, &invoice_id);
+        assert_eq!(err, Err(crate::errors::QuickLendXError::InvoiceLockExpired));
+    });
 }
