@@ -23,7 +23,7 @@
 //! or been cancelled, leading to state corruption or inconsistent accounting.
 //! Each guard returns a distinct typed error so the caller (and any audit
 //! monitor) can distinguish between a wrong-invoice call (`Unauthorized`),
-//! an expired bid (`InvalidStatus`), and a zero-amount bid (`InvalidAmount`).
+//! an expired bid (`BidStale`), and a zero-amount bid (`InvalidAmount`).
 
 #![cfg(test)]
 
@@ -210,7 +210,7 @@ fn verify_bid_match_rejects_expired_timestamp() {
     bid.expiration_timestamp = 999_999; // expired (before current timestamp)
 
     let err = verify_bid_match(&env, &bid, &invoice).expect_err("expired bid must fail");
-    assert_eq!(err, QuickLendXError::InvalidStatus);
+    assert_eq!(err, QuickLendXError::BidStale);
 }
 
 // ============================================================================
