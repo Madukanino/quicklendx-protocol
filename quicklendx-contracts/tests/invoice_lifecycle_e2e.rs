@@ -895,3 +895,38 @@ fn test_partial_then_full_settle() {
         "Stage 6: invoice must appear in Paid bucket"
     );
 }
+
+#[test]
+fn test_stale_investment_snapshot_does_not_break_settlement() {
+    let env = Env::default();
+    let fx = setup_contract(&env);
+
+    let invoice_amount: i128 = 100_000_000;
+    let bid_amount: i128 = 50_000_000;
+
+    let invoice_id = upload_verified_invoice(&fx, invoice_amount, "Stale snapshot test");
+    let bid_salt = BytesN::from_array(&env, &[99u8; 32]);
+    let bid_id = fx.client.place_bid(
+        &fx.investor,
+        &invoice_id,
+        &bid_amount,
+        &invoice_amount,
+        &bid_salt,
+    );
+
+    fx.client.accept_bid_and_fund(&invoice_id, &bid_id);
+
+    let stale_snapshot = fx.client.get_investment_by_invoice(&invoice_id);
+
+    // Make a state change after taking the snapshot.
+    fx.client
+        .process_partial_payment(&invoice_id, &20_000_000i128, &tx_id(&env, 9));
+
+    let remaining = invoice_amount - 20_000_000;
+    fx.client
+        .settle_invoice(&invoice_id, &remaining, &stale_snapshot);
+
+    let invoice = fx.client.get_invoice(&invoice_id);
+    assert_eq!(invoice.status, InvoiceStatus::Paid);
+    assert_eq!(invoice.total_paid, invoice_amount);
+}

@@ -725,7 +725,7 @@ pub fn settle_invoice(
     env: &Env,
     invoice_id: &BytesN<32>,
     payment_amount: i128,
-    snap: &crate::types::Investment,
+    _snap: &crate::types::Investment,
     business: &Address,
 ) -> Result<(), QuickLendXError> {
     if payment_amount <= 0 {
@@ -755,23 +755,22 @@ pub fn settle_invoice(
     require_no_active_dispute(&invoice)?;
     let payer = invoice.business.clone();
 
-    let remaining_due = compute_remaining_due(env, &invoice)?;
-    if payment_amount > remaining_due {
-        return Err(QuickLendXError::InvalidAmount);
+    let investment = InvestmentStorage::get_investment_by_invoice(env, invoice_id)
+        .ok_or(QuickLendXError::StorageKeyNotFound)?;
+
+    if investment.status != InvestmentStatus::Active {
+        return Err(QuickLendXError::InvalidStatus);
     }
 
-    let applied_preview = payment_amount;
-
-    if applied_preview <= 0 {
+    let remaining_due = compute_remaining_due(env, &invoice)?;
+    if payment_amount != remaining_due || payment_amount <= 0 {
         return Err(QuickLendXError::InvalidAmount);
     }
 
     let projected_total = invoice
         .total_paid
-        .checked_add(applied_preview)
+        .checked_add(payment_amount)
         .ok_or(QuickLendXError::InvalidAmount)?;
-
-    let investment = InvestmentStorage::get_investment_by_invoice(env, invoice_id).unwrap();
 
     if projected_total < investment.amount {
         return Err(QuickLendXError::PaymentTooLow);
@@ -982,7 +981,8 @@ fn settle_invoice_internal(
     ensure_payable_status(&invoice)?;
     require_no_active_dispute(&invoice)?;
 
-    let investment = InvestmentStorage::get_investment_by_invoice(env, invoice_id).unwrap();
+    let investment = InvestmentStorage::get_investment_by_invoice(env, invoice_id)
+        .ok_or(QuickLendXError::StorageKeyNotFound)?;
 
     if compute_remaining_due(env, &invoice)? != 0 || invoice.total_paid < investment.amount {
         return Err(QuickLendXError::PaymentTooLow);
@@ -1247,8 +1247,11 @@ fn get_last_applied_amount(env: &Env, invoice_id: &BytesN<32>) -> Result<i128, Q
 
 fn make_settlement_nonce(env: &Env) -> String {
     // Full settlement can only succeed once per invoice (status becomes Paid),
-    // so a static nonce is sufficient for this internal path.
-    String::from_str(env, "settlement")
+    // so a static 64-character hex nonce is sufficient for this internal path.
+    String::from_str(
+        env,
+        "0000000000000000000000000000000000000000000000000000736574746c65",
+    )
 }
 
 fn emit_payment_recorded(

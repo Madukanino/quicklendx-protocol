@@ -2823,22 +2823,23 @@ impl QuickLendXContract {
         env: Env,
         invoice_id: BytesN<32>,
         payment_amount: i128,
-        snap: crate::types::Investment,
+        _snap: crate::types::Investment,
     ) -> Result<(), QuickLendXError> {
         pause::PauseControl::require_not_paused(&env)?;
         let invoice = InvoiceStorage::get_invoice(&env, &invoice_id)
             .ok_or(QuickLendXError::InvoiceNotFound)?;
-        let _investment = InvestmentStorage::get_investment_by_invoice(&env, &invoice_id);
+        let investment = InvestmentStorage::get_investment_by_invoice(&env, &invoice_id)
+            .ok_or(QuickLendXError::StorageKeyNotFound)?;
 
-        let result = reentrancy::with_payment_guard(&env, || {
-            do_settle_invoice(&env, &invoice_id, payment_amount, &snap, &invoice.business)
-        });
-
-        if result.is_ok() {
-            // Success
-        }
-
-        result
+        reentrancy::with_payment_guard(&env, || {
+            do_settle_invoice(
+                &env,
+                &invoice_id,
+                payment_amount,
+                &investment,
+                &invoice.business,
+            )
+        })
     }
 
     /// Get the investment record for a funded invoice.
